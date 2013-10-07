@@ -1,103 +1,97 @@
 #-*- coding:utf-8 -*-
+$:.unshift File.dirname(__FILE__)
 require 'optparse'
+require 'readline'
+require './rbwrite.rb'
+require './cwrite.rb'
+
+#(☝ ՞ਊ ՞）☝ご都合主義よねぇ～
+$fname = nil
 
 OptionParser.new do |opt|
 	#オプション定義
-	#あとで追加可能
-	#opt.on(shortopt, longopt, )
-	opt.on('-r', '--rb', "make ruby code")
-	opt.on('-c', '--gcc', "make c code") 
-
+	#あとで追加可能、以下のフォームで追加可能
+	#opt.on(shortopt, longopt, WHAT'S) {|string| FNAME = string}
+	opt.on('-r [string]', '--rb [string]', "make ruby code") {|string| $fname = string}
+	opt.on('-c string', '--gcc string', "make c code") {|string| $fname = string}
 	#オプションの解析
 	opt.parse(ARGV)
 end
 
-#ARGVにshiftをかけてoptに格納
 opt = ARGV.shift
 
-#ここから本体
+#コマンドラインでファイル名が定義されていない時の処理
+if $fname == nil then 
+	print "File name : "
+	$fname = gets.to_s
+	$fname = $fname.chomp
+end
+
 #optを参照して生成するコードの種類を分岐
 case opt
 
 	#オプションがrubyのものの時の処理
 	when '-r', '--rb'
+		#クラスの読み込み
+		rbwrite = Rb_maker.new($fname)
 
-		print "File name : "
-		#ファイル名
-		fname = gets.to_s
-		#入力されたファイル名から特殊文字を消去
-		fname = fname.chomp
-		#新規Rubyコードの作成
-		rbfile = File.open(fname, 'w')
+		#記述エンコードの要求と出力
+		puts "encode name"
+		encode = Readline.readline("-> ")
+		#文字列整形
+		encode = encode.chomp
+		rbwrite.encode_writer(encode)
 
-		#エンコード名を要求
-		print "Whan encode? "
-		#エンコード名
-		encode = gets.to_s
-		#エンコードを追加、文字列を整形して追加
-		code = "#coding:"+encode.chomp
-		rbfile.puts(code)
-
-		print "You need require? (y or n) : "
-		yn = gets.to_s
-
-		#クラスが必要か確認し、分岐する
+		#requireの有無を要求
+		puts "Do you need class ?"
+		yn = Readline.readline("(y or n ) -> ")
+		#文字列整形
+		yn = yn.chomp
 		case yn
-			when "y\n"
-				for i in 2..102
-					print "What class do you need? : "
-					#クラスの名前
-					cname = gets.to_s
+			#yesのとき
+			when 'y'
+				for i in 0..100
+					#必要なクラス名、ファイル名を要求
+					puts "Class name"
+					class_name = Readline.readline("-> ")
+					class_name = class_name.chomp
 
-					#「end」と入力されたらプログラムを終了する
-					if cname == "end\n" then
+					if class_name == 'end' then 
 						break
 					end
 
-					#入力されたコードを整形
-					cname = cname.chomp
-					rbcode = "require '"+cname+"'"
-
-					#ファイルにコードを書き出す
-					rbfile.puts(rbcode)
+					rbwrite.require_writer(class_name)
 				end
-			
-			when "n\n"
+
+			#noのとき
+			when 'n'
 				exit
+
 		end
+		#書き出したコードにエラーがないか検証
+		rbwrite.checker
 
 	#C言語のオプションを受けたとき
 	when '-c', '--gcc'
-		print "File name : "
-		#ファイル名
-		fname = gets.to_s
-		#入力されたファイル名から特殊文字を消去
-		fname = fname.chomp
-		#新規にCのコードを作成
-		cfile = File.open(fname, 'w')
+		#クラスを生成
+		cwrite = C_maker.new($fname)
 
-		code = "#include<stio.h>"
-		cfile.puts(code)
-
+		#ヘッダー名を要求
 		for i in 0..100
-			print "What Hedder include? "
-			#ヘッダーファイル名
-			hname = gets.to_s
+			print "header name : "
+			head = Readline.readline
+			head = head.chomp
 
-			#「end」と入力されたらプログラムを終了する
-			if hname == "end\n" then 
+			if head == 'end'
 				break
-
-			else
-				hname = hname.chomp
-				cfile.print("#include<"+hname+">\n")
-
 			end
+
+			cwrite.header_writer(head)
 		end
 
-		main_func = "\nint main()\n{\n	return 0;\n}\n"
-		cfile.print(main_func)
-	
+		#メイン関数の書き出し
+		cwrite.mainfunc
+
 	#オプションが入力されなかった時の処理
 	when nil
 		puts "Please input options!"
